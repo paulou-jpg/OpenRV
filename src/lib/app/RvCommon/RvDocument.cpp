@@ -23,7 +23,8 @@
 #ifdef PLATFORM_WINDOWS
 #include <GL/glew.h>
 #endif
-#include <RvCommon/GLView.h> // WINDOWS: include AFTER other stuff
+#include <RvCommon/GLView.h>
+#include <RvCommon/GLWindow.h> // WINDOWS: include AFTER other stuff
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_WINDOWS)
 #include <RvCommon/VulkanView.h>
 #include <RvCommon/QTVulkanVideoDevice.h>
@@ -339,6 +340,13 @@ namespace Rv
         setCentralWidget(m_viewContainerWidget);
 
         m_viewWidget->setFocus(Qt::OtherFocusReason);
+
+        connect(qApp, &QGuiApplication::focusWindowChanged, this,
+                [this](QWindow* window)
+                {
+                    if (window == windowHandle())
+                        QTimer::singleShot(0, this, &RvDocument::handKeyboardToViewport);
+                });
         // qApp->installEventFilter(m_glView);
 
         m_resetPolicyTimer = new QTimer(this);
@@ -2103,6 +2111,31 @@ namespace Rv
         }
     }
 
+    void RvDocument::handKeyboardToViewport()
+    {
+        //
+        //  The embedded viewport is a separate native window, so focus landing
+        //  on the top-level (at startup, on activation, after a full-screen
+        //  change) does not give it the keyboard; hotkeys would do nothing until
+        //  the pointer enters the viewport. Only acts while the top-level itself
+        //  has focus, so it never takes focus from another application or from
+        //  another of our windows. Leaves alone the blocking overlay and any
+        //  widget that takes focus on click, such as text entry or lists.
+        //
+        GLWindow* window = (m_glView && m_viewWidget == m_glView) ? m_glView->glWindow() : nullptr;
+        if (!window || QGuiApplication::focusWindow() != windowHandle())
+            return;
+
+        if (m_blockingOverlay && m_blockingOverlay->isVisible())
+            return;
+
+        const QWidget* focused = QApplication::focusWidget();
+        if (focused && focused != m_viewWidget && !m_viewWidget->isAncestorOf(focused) && (focused->focusPolicy() & Qt::ClickFocus))
+            return;
+
+        window->requestActivate();
+    }
+
     void RvDocument::toggleFullscreen(bool firstTime)
     {
         DB("toggleFullScreen currently " << isFullScreen());
@@ -2143,9 +2176,18 @@ namespace Rv
             }
         }
 
-        m_viewWidget->setFocus(Qt::OtherFocusReason);
+        //
+        //  When the viewport window already holds focus, QWindowContainer
+        //  answers another setFocus() by moving focus to the next widget in the
+        //  tab chain, leaving hotkeys dead until the user clicks the viewport.
+        //  See also GLWindow::event().
+        //
+        GLWindow* viewportWindow = (m_glView && m_viewWidget == m_glView) ? m_glView->glWindow() : nullptr;
+        if (!viewportWindow || QGuiApplication::focusWindow() != viewportWindow)
+            m_viewWidget->setFocus(Qt::OtherFocusReason);
         activateWindow();
         raise();
+
         //
         //  On windows, sometimes returning from full-screen leaves us
         //  with a black screen unless we do the below.

@@ -216,6 +216,8 @@ namespace Rv
         bool activeViewFirstPaintCompleted() const;
 
     private:
+        void handKeyboardToViewport();
+
         RvSession* m_session;
         QMenu* m_rvMenu;
         QMenu* m_mainPopup;
