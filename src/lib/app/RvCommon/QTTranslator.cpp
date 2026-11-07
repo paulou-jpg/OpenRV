@@ -16,6 +16,7 @@
 #include <TwkUtil/PathConform.h>
 #include <TwkUtil/FrameUtils.h>
 #include <QtCore/QMimeData>
+#include <QtGui/QGuiApplication>
 
 namespace
 {
@@ -80,7 +81,12 @@ namespace Rv
         return m;
     }
 
-    void QTTranslator::resetModifiers() const { m_modifiers = Qt::NoModifier; }
+    //
+    //  Ask the system rather than assuming nothing is held: focus can return
+    //  while modifiers are down (e.g. after a full-screen toggle), and clearing
+    //  them would turn a held Ctrl+Shift+F into a plain "f".
+    //
+    void QTTranslator::resetModifiers() const { m_modifiers = QGuiApplication::queryKeyboardModifiers(); }
 
     Qt::MouseButtons QTTranslator::qbuttons(unsigned int b) const
     {
@@ -136,7 +142,11 @@ namespace Rv
                 // Alt modifier included in handling, as a mismatch can
                 // occur when pressing Alt + Shift. Qt can incorrectly
                 // substitute Meta button for Alt on key up.
-                if (m_modifiers & Qt::ControlModifier || m_modifiers & Qt::AltModifier || m_modifiers & Qt::MetaModifier)
+                //
+                // A Qt 6 QEnterEvent is an input event that always reports no
+                // modifiers, so it says nothing about what is actually held.
+                if (event->type() != QEvent::Enter
+                    && (m_modifiers & Qt::ControlModifier || m_modifiers & Qt::AltModifier || m_modifiers & Qt::MetaModifier))
                 {
                     m_modifiers = inputEvent->modifiers() & 0xffff0000;
                 }
