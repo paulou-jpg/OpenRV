@@ -6904,6 +6904,7 @@ global bool debugGC = false;
     // bound by menuItem("Open...") // bind("key-down--control--i", addMovieOrImageSources(,true,false), "Add Source");
     // bound by menuItem("Save Session") // bind("key-down--control--s", save, "Save Session");
     bind("key-down--control--w", "system_category", queryClose, "Close Session");
+    bind("key-down--q", "system_category", queryClose, "Close Session");
     // bound by menuItem("Merge...") // bind("key-down--control--o", addMovieOrImageSources(,true,false), "Open File");
     // bound by menuItem("Open in New Session...") // bind("key-down--control--O", openMovieOrImage, "Open in New Session");
     bind("key-down--control--1", "viewmode_category", pixelRelativeScale(1.0/1.0), "Scale 1:1"); // same as just "1"
